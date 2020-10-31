@@ -102,6 +102,8 @@ alias planweek="python3 /mnt/c/Users/alex/OneDrive/Sync/espanso/user/scripts/pla
 # configure display to use with X410 server running in Windows
 export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2; exit;}'):0.0
 
+autoload run-help
+
 prompt_end() {
   if [[ -n $CURRENT_BG ]]; then
       print -n "%{%k%F{$CURRENT_BG}%}$SEGMENT_SEPARATOR"
