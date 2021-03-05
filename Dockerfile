@@ -1,4 +1,4 @@
-FROM alexchiri.azurecr.io/ubuntu:18.04
+FROM ubuntu:20.04
 
 RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
 RUN apt-get update && apt-get -y install zsh curl git sudo locales vim dos2unix wget iputils-ping iproute2 firefox
@@ -7,41 +7,44 @@ RUN apt-get update && apt-get -y install zsh curl git sudo locales vim dos2unix 
 RUN echo "Set disable_coredump false" >> /etc/sudo.conf
 
 # create user and set password
-ARG WSL_USER_PASS
-RUN useradd --create-home alex
-RUN echo "${WSL_USER_PASS}\n${WSL_USER_PASS}" | passwd alex
-RUN usermod -aG sudo alex
+ARG USERNAME=alex
+ARG USER_UID=1000
+ARG USER_GID=${USER_UID}
+
+RUN groupadd --gid ${USER_GID} ${USERNAME} \
+    && useradd --uid ${USER_UID} --gid ${USER_GID} -m ${USERNAME} \
+    && apt-get update \
+    && apt-get install -y sudo \
+    && echo ${USERNAME} ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/${USERNAME} \
+    && chmod 0440 /etc/sudoers.d/${USERNAME}
 
 COPY wsl.conf /etc/wsl.conf
-
-# include script to bring ssh files (and make sure it has linux style line endings)
-COPY bring_ssh_files_from_windows /usr/local/bin/bring_ssh_files_from_windows
-RUN chmod +x /usr/local/bin/bring_ssh_files_from_windows
-RUN dos2unix /usr/local/bin/bring_ssh_files_from_windows
 
 # generate locale so the agnoster zsh theme works
 RUN locale-gen en_US.UTF-8
 
-USER alex
+USER ${USERNAME}
 
 # install oh-my-zsh
 RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 
 # configure git
-RUN git config --global user.email "alex@alexchiri.com"
-RUN git config --global user.name "Alexandru Chiritescu"
+ARG GIT_EMAIL
+ARG GIT_NAME
+RUN git config --global user.email ${GIT_EMAIL}
+RUN git config --global user.name ${GIT_NAME}
 RUN git config --global core.autocrlf false
 
 # change the shade of blue in the theme
-RUN sed -i '0,/blue/{s/blue/39d/}' /home/alex/.oh-my-zsh/themes/agnoster.zsh-theme
+RUN sed -i '0,/blue/{s/blue/39d/}' /home/${USERNAME}/.oh-my-zsh/themes/agnoster.zsh-theme
 
 USER root
 # copy zsh config
-COPY .zshrc /home/alex/.zshrc
-RUN chown alex:alex /home/alex/.zshrc
-RUN usermod --shell /usr/bin/zsh alex
+COPY .zshrc /home/${USERNAME}/.zshrc
+RUN chown ${USERNAME}:${USERNAME} /home/${USERNAME}/.zshrc
+RUN usermod --shell /usr/bin/zsh ${USERNAME}
 
 # copy vim config
-COPY .vimrc /home/alex/.vimrc
-RUN dos2unix /home/alex/.vimrc
-RUN chown alex:alex /home/alex/.vimrc
+COPY .vimrc /home/${USERNAME}/.vimrc
+RUN dos2unix /home/${USERNAME}/.vimrc
+RUN chown ${USERNAME}:${USERNAME} /home/${USERNAME}/.vimrc
